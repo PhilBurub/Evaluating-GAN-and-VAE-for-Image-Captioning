@@ -30,12 +30,12 @@ def embed(images, model, processor, device, processor_args={}):
         output_features = model(**input_features)
         return output_features.last_hidden_state
 
-def get_collator(tokenizer, path):
+def get_collator(image_model, image_processor, eos_token, device, path):
     def collate(batch):
         captions = []
         images = []
         for row in batch:
-            captions.append(row['caption'][0] + tokenizer.special_tokens_map['eos_token'])
+            captions.append(row['caption'][0] + eos_token)
             images.append(read_image(path + row['image']))
-        return embed(images), captions
+        return embed(images, image_model, image_processor, device), captions
     return collate
