@@ -1,9 +1,25 @@
 from tqdm import tqdm
 import torch
 import evaluate
+import gc
 
 bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
+
+def _clean_memory():
+    vars_to_delete = [
+        'model', 'opt', 'real_batch', 'batch', 'outputs', 'logits', 'loss',
+        'peft_config', 'next_word_logits', 'true_next_tokens', 'accelerator',
+        'next_token', 'out', 'module', 'param', 'test_emb_layer', 'test_input_ids',
+        'test_prompt_embeddings', 'test_inputs_with_prompts'
+    ]
+    for name in vars_to_delete:
+        if name in globals():
+            del globals()[name]
+    
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
 
 class QwenImageDescriptionTrainer:
     def __init__(self, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4):
