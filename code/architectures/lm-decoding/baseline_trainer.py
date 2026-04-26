@@ -6,21 +6,6 @@ import gc
 bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
-def _clean_memory():
-    vars_to_delete = [
-        'model', 'opt', 'real_batch', 'batch', 'outputs', 'logits', 'loss',
-        'peft_config', 'next_word_logits', 'true_next_tokens', 'accelerator',
-        'next_token', 'out', 'module', 'param', 'test_emb_layer', 'test_input_ids',
-        'test_prompt_embeddings', 'test_inputs_with_prompts'
-    ]
-    for name in vars_to_delete:
-        if name in globals():
-            del globals()[name]
-    
-    gc.collect()
-    torch.cuda.empty_cache()
-    torch.cuda.reset_peak_memory_stats()
-
 class QwenImageDescriptionTrainer:
     def __init__(self, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4):
         self.qwen_model = qwen_model
@@ -29,7 +14,9 @@ class QwenImageDescriptionTrainer:
         self.device = device
         
         break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
-        self.break_embeddings = qwen_model.model.embed_tokens(break_tokens).to(self.device)
+        
+        with torch.no_grad():
+            self.break_embeddings = qwen_model.model.embed_tokens(break_tokens).to(self.device)
 
         for param in self.qwen_model.parameters():
             param.requires_grad = False
@@ -47,7 +34,7 @@ class QwenImageDescriptionTrainer:
         image_embeddings = torch.concat(
             [
               image_embeddings,
-              self.break_embeddings.repeat(image_embeddings.shape[0], 1, 1)
+              self.break_embeddings.detach().repeat(image_embeddings.shape[0], 1, 1)
             ],
             dim=1
         )
@@ -114,15 +101,15 @@ class QwenImageDescriptionTrainer:
                     image_inputs, texts = batch
                     total_loss += self.get_loss(image_inputs, texts, val=True) * image_inputs.size(0)
                     total_examples += image_inputs.size(0)
-                    _clean_memory()
+
         else:
             self.image_adapter.train()
             for batch in tqdm(loader, desc="Training"):
                 image_inputs, texts = batch
                 total_loss += self.get_loss(image_inputs, texts, val=False) * image_inputs.size(0)
                 total_examples += image_inputs.size(0)
-                _clean_memory()
-
+                
+        torch.cuda.empty_cache()
         return total_loss / total_examples
 
     def generate(self, image_embeddings, max_tokens=20):
@@ -135,7 +122,7 @@ class QwenImageDescriptionTrainer:
             previous_embeddings = torch.concat(
                 [
                   previous_embeddings,
-                  self.break_embeddings.repeat(previous_embeddings.shape[0], 1, 1).to(self.device)
+                  self.break_embeddings.detach().repeat(previous_embeddings.shape[0], 1, 1).to(self.device)
                 ],
                 dim=1
             )
