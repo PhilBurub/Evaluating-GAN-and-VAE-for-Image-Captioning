@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import torch
 import evaluate
-import gc
 
 bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
@@ -127,7 +126,6 @@ class QwenImageDescriptionTrainer:
                 dim=1
             )
     
-            # Подготовьте input_values и attn_mask - маску для аттеншена (только аудио, тк текст предсказываем)
             attn_mask = torch.ones(previous_embeddings.shape[:2], device=self.device)
     
             fake_input_ids = torch.full(
@@ -165,6 +163,7 @@ class QwenImageDescriptionTrainer:
             bert_scores = bertscore.compute(
                 predictions=predictions,
                 references=references,
+                device=self.device,
                 lang="en"
             )['f1']
             
