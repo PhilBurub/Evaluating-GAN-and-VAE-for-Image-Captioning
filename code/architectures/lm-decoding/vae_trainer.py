@@ -38,9 +38,9 @@ class VAEImageDescriptionTrainer:
             truncation=True
         ).to(self.device)
         
-        text_embeddings = self.qwen_model.model(**qwen_tokens)
+        text_embeddings = self.qwen_model.model(**qwen_tokens).last_hidden_state
         
-        mu, log_var = self.encoder(text_embeddings)
+        mu, log_var = self.encoder(text_embeddings.permute((0, 2, 1)))
         
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(mu, device=self.device)

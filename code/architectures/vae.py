@@ -16,8 +16,7 @@ class VAEnc(nn.Module):
         super().__init__()
         
         nn_layers = []
-        self.input_tokens = input_tokens
-        output_shape = input_tokens
+        self.output_shape = self.input_tokens = input_tokens
         for i in range(layers_num):
             nn_layers.extend([
                 nn.Conv1d(
@@ -28,14 +27,14 @@ class VAEnc(nn.Module):
                 ),
                 nn.ReLU()
             ])
-            output_shape = int((output_shape - kernel_size) / kernel_stride) + 1
+            self.output_shape = int((self.output_shape - kernel_size) / kernel_stride) + 1
 
         nn_layers.append(nn.Flatten())
 
         self.encoder = nn.Sequential(*nn_layers)
         
-        self.fc_mu = nn.Linear(output_shape * hidden_dim, output_dim)
-        self.fc_var = nn.Linear(output_shape * hidden_dim, output_dim)
+        self.fc_mu = nn.Linear(self.output_shape * hidden_dim, output_dim)
+        self.fc_var = nn.Linear(self.output_shape * hidden_dim, output_dim)
 
     def forward(self, x: torch.Tensor):
         x = self.encoder(x)
