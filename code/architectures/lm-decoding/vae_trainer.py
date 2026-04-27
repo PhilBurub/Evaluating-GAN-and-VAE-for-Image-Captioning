@@ -6,15 +6,14 @@ bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class VAEImageDescriptionTrainer:
-    def __init__(self, vae_encoder, trainable_tokens, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4):
+    def __init__(self, vae_encoder, encoder_dim, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4):
         self.qwen_model = qwen_model
         self.qwen_tokenizer = qwen_tokenizer
         self.image_adapter = image_adapter
         self.device = device
         self.encoder = vae_encoder
-        self.trainable_tokens = trainable_tokens
-        self.encoder_dim = self.encoder.fc_mu.out_features // self.trainable_tokens
-        
+        self.encoder_dim = encoder_dim
+            
         break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
         with torch.no_grad():
             self.break_embeddings = qwen_model.model.embed_tokens(break_tokens).to(self.device)
@@ -35,7 +34,7 @@ class VAEImageDescriptionTrainer:
             texts,
             return_tensors='pt',
             padding='max_length',
-            max_length=64,
+            max_length=self.encoder.input_tokens,
             truncation=True
         ).to(self.device)
         
@@ -45,8 +44,7 @@ class VAEImageDescriptionTrainer:
         
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(mu, device=self.device)
-        z = eps * std + mu
-        return z.unflatten(1, (self.trainable_tokens, self.encoder_dim)), mu, log_var
+        return eps * std + mu, mu, log_var
         
     def get_loss(self, image_inputs, texts, val=False):
         
@@ -57,7 +55,7 @@ class VAEImageDescriptionTrainer:
         image_inputs = torch.concat(
             [
                 image_inputs.to(self.device), 
-                noise_sampled
+                noise_sampled.unflatten(1, (image_inputs.shape[1], self.encoder_dim))
             ],
             dim=2
         ).permute((0, 2, 1))
@@ -153,7 +151,7 @@ class VAEImageDescriptionTrainer:
         with torch.no_grad():
             noise_sampled = torch.randn((
                 image_embeddings.shape[0],
-                self.trainable_tokens,
+                image_embeddings.shape[1],
                 self.encoder_dim
             ))
             

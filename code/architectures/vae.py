@@ -16,6 +16,7 @@ class VAEnc(nn.Module):
         super().__init__()
         
         nn_layers = []
+        self.input_tokens = input_tokens
         output_shape = input_tokens
         for i in range(layers_num):
             nn_layers.extend([
