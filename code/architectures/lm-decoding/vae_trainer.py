@@ -6,13 +6,14 @@ bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class VAEImageDescriptionTrainer:
-    def __init__(self, vae_encoder, encoder_dim, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4):
+    def __init__(self, vae_encoder, encoder_dim, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4, kl_coef=0.1):
         self.qwen_model = qwen_model
         self.qwen_tokenizer = qwen_tokenizer
         self.image_adapter = image_adapter
         self.device = device
         self.encoder = vae_encoder
         self.encoder_dim = encoder_dim
+        self.kl_coef = kl_coef
             
         break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
         with torch.no_grad():
@@ -50,7 +51,7 @@ class VAEImageDescriptionTrainer:
         
         noise_sampled, mu, log_var = self.encode_texts(texts)
         
-        kld_loss = -0.5 * (1 + log_var - mu.pow(2) - log_var.exp()).mean()
+        kld_loss = - self.kl_coef * (1 + log_var - mu.pow(2) - log_var.exp()).mean()
         
         image_inputs = torch.concat(
             [
