@@ -31,7 +31,7 @@ class GANImageDescriptionTrainer:
         )
         
     def compute_gradient_penalty(self, image_tokens, real_samples, fake_samples):
-        alpha = torch.rand(real_samples.size(0), 1, device=self.device)
+        alpha = torch.rand(real_samples.size(0), 1, 1, device=self.device)
         interpolates = (alpha * real_samples + (1 - alpha) * fake_samples).requires_grad_(True)
         
         critic_interpolates = self.discriminator(image_tokens.permute((0, 2, 1)), interpolates.permute((0, 2, 1)))
