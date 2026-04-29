@@ -61,7 +61,7 @@ class GANImageDescriptionTrainer:
                     (
                         image_inputs.shape[0], 
                         image_inputs.shape[1],
-                        self.mage_adapter.adapter[0].in_channels - image_inputs.shape[2]
+                        self.image_adapter.adapter[0].in_channels - image_inputs.shape[2]
                     ),
                     device=self.device
                 )
