@@ -125,7 +125,7 @@ class GANImageDescriptionTrainer:
             labels=targets
         ).logits[:, image_embeddings.shape[2]+1:]
         
-        logits /= logits.sum(dim=-1)
+        logits /= logits.sum(dim=-1, keepdim=True)
         
         pred_embeddings = logits @ self.qwen_model.model.embed_tokens.weight
         
