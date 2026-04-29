@@ -57,11 +57,14 @@ class GANImageDescriptionTrainer:
         image_inputs_noisy = torch.concat(
             [
                 image_inputs.to(self.device), 
-                torch.randn((
-                    image_inputs.shape[0], 
-                    image_inputs.shape[1],
-                    self.image_adapter.adapter[0].input_channels - image_inputs.shape[2]
-                ))
+                torch.randn(
+                    (
+                        image_inputs.shape[0], 
+                        image_inputs.shape[1],
+                        self.mage_adapter.adapter[0].in_channels - image_inputs.shape[2]
+                    ),
+                    device=self.device
+                )
             ],
             dim=2
         ).permute((0, 2, 1))
@@ -200,11 +203,14 @@ class GANImageDescriptionTrainer:
             image_inputs_noisy = torch.concat(
                 [
                     image_embeddings.to(self.device), 
-                    torch.randn((
-                        image_embeddings.shape[0], 
-                        image_embeddings.shape[1],
-                        self.image_adapter.adapter[0].input_channels - image_embeddings.shape[2]
-                    ))
+                    torch.randn(
+                        (
+                            image_embeddings.shape[0], 
+                            image_embeddings.shape[1],
+                            self.image_adapter.adapter[0].in_channels - image_embeddings.shape[2]
+                        ),
+                        device=self.device
+                    )
                 ],
                 dim=2
             ).permute((0, 2, 1))
