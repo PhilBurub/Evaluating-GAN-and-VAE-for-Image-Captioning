@@ -7,12 +7,12 @@ bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class GANImageDescriptionTrainer:
-    def __init__(self, descriminator, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4, lambda_gp=5):
+    def __init__(self, discriminator, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4, lambda_gp=5):
         self.qwen_model = qwen_model
         self.qwen_tokenizer = qwen_tokenizer
         self.image_adapter = image_adapter
         self.device = device
-        self.descriminator = descriminator
+        self.discriminator = discriminator
         self.lambda_gp = lambda_gp
             
         break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
@@ -25,7 +25,7 @@ class GANImageDescriptionTrainer:
         self.optimizer = torch.optim.Adam(
             [
                 {'params': self.image_adapter.parameters()},
-                {'params': self.descriminator.parameters()}
+                {'params': self.discriminator.parameters()}
             ],
             lr=lr
         )
@@ -34,7 +34,7 @@ class GANImageDescriptionTrainer:
         alpha = torch.rand(real_samples.size(0), 1, device=self.device)
         interpolates = (alpha * real_samples + (1 - alpha) * fake_samples).requires_grad_(True)
         
-        critic_interpolates = self.descriminator(image_tokens.permute((0, 2, 1)), interpolates.permute((0, 2, 1)))
+        critic_interpolates = self.discriminator(image_tokens.permute((0, 2, 1)), interpolates.permute((0, 2, 1)))
         
         fake_grad_outputs = torch.ones_like(critic_interpolates, device=self.device)
         
@@ -80,7 +80,7 @@ class GANImageDescriptionTrainer:
             texts,
             return_tensors='pt',
             padding='max_length',
-            max_length=self.descriminator.input_tokens,
+            max_length=self.discriminator.input_tokens,
             truncation=True
         ).to(self.device)
 
@@ -126,7 +126,7 @@ class GANImageDescriptionTrainer:
         
         pred_embeddings = logits @ self.qwen_model.model.embed_tokens.weight
         
-        pred_score = self.descriminator(
+        pred_score = self.discriminator(
             image_inputs.permute((0, 2, 1)),
             pred_embeddings.permute((0, 2, 1))
         )
@@ -134,7 +134,7 @@ class GANImageDescriptionTrainer:
         if generator:
             loss = - pred_score.mean()
         else:
-            real_score = self.descriminator(
+            real_score = self.discriminator(
                 image_inputs.permute((0, 2, 1)),
                 text_embeddings.permute((0, 2, 1))
             )
@@ -177,14 +177,14 @@ class GANImageDescriptionTrainer:
                 
                 if step == n_critic:
                     self.image_adapter.train()
-                    self.descriminator.eval()
+                    self.discriminator.eval()
                     
                     generator_loss += self.get_loss(image_inputs, texts, generator=True, val=False) * image_inputs.size(0)
                     generator_examples += image_inputs.size(0)
                     step = 1
                 else:
                     self.image_adapter.eval()
-                    self.descriminator.train()
+                    self.discriminator.train()
                     
                     critic_loss += self.get_loss(image_inputs, texts, val=False) * image_inputs.size(0)
                     critic_examples += image_inputs.size(0)
@@ -195,7 +195,7 @@ class GANImageDescriptionTrainer:
 
     def generate(self, image_embeddings, max_tokens=20):
         self.image_adapter.eval()
-        self.descriminator.eval()
+        self.discriminator.eval()
         with torch.no_grad():
             image_inputs_noisy = torch.concat(
                 [

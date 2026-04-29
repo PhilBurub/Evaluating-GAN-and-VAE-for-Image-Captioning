@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-class Descriminator(nn.Module):
+class Discriminator(nn.Module):
     def __init__(
         self,
         img_dim: int,
