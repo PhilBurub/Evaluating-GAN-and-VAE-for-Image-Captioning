@@ -123,7 +123,7 @@ class GANImageDescriptionTrainer:
             inputs_embeds=all_embeddings,
             attention_mask=attn_mask,
             labels=targets
-        ).logits[:, image_embeddings.shape[2]+1:]
+        ).logits[:, image_embeddings.shape[1]:]
         
         logits /= logits.sum(dim=-1, keepdim=True)
         
