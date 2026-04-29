@@ -83,7 +83,7 @@ class GANImageDescriptionTrainer:
             texts,
             return_tensors='pt',
             padding='max_length',
-            max_length=self.discriminator.input_tokens,
+            max_length=self.discriminator.text_tokens,
             truncation=True
         ).to(self.device)
 
