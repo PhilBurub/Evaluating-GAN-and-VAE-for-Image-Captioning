@@ -158,7 +158,7 @@ class GANImageDescriptionTrainer:
 
         if val:
             self.image_adapter.eval()
-            self.encoder.eval()
+            self.discriminator.eval()
             with torch.no_grad():
                 step = 1
                 for batch in tqdm(loader, desc="Validating"):
