@@ -143,7 +143,8 @@ class GANImageDescriptionTrainer:
             )
             
             loss = pred_score.mean() - real_score.mean()
-            loss =+ self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
+            if not val:
+                loss =+ self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
         
         if not val:
             self.optimizer.zero_grad()
