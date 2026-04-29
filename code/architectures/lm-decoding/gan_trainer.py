@@ -47,7 +47,7 @@ class GANImageDescriptionTrainer:
             only_inputs=True,
         )[0]
         
-        gradients = gradients.view(gradients.size(0), -1)
+        gradients = gradients.flatten(start_dim=1)
         gradient_norm = gradients.norm(2, dim=1)
         
         gradient_penalty = ((gradient_norm - 1) ** 2).mean()
