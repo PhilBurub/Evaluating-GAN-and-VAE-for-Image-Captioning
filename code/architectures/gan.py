@@ -7,48 +7,51 @@ class Discriminator(nn.Module):
         img_dim: int,
         text_dim: int,
         hidden_dim: int = 1024,
-        input_tokens: int = 100,
+        text_tokens: int = 100,
+        image_tokens: int = 100,
         kernel_size = 5,
         kernel_stride = 5,
-        layers_num: int = 3,
+        layers_num: int = 3
     ) -> None:
 
         super().__init__()
         
-        nn_layers = []
-        self.output_shape = self.input_tokens = input_tokens
+        image_layers = []
+        text_layers = []
         
-        self.img_encoder = nn.Conv1d(
-            img_dim,
-            hidden_dim,
-            1
-        )
-        
-        self.text_encoder = nn.Conv1d(
-            text_dim,
-            hidden_dim,
-            1
-        )
+        output_text = self.text_tokens = text_tokens
+        output_image = self.image_tokens = image_tokens
         
         for i in range(layers_num):
-            nn_layers.extend([
-                nn.ReLU(),
+            image_layers.extend([
                 nn.Conv1d(
-                    hidden_dim,
+                    img_dim if i==0 else hidden_dim,
                     hidden_dim,
                     kernel_size,
                     kernel_stride
-                )
+                ),
+                nn.ReLU()
             ])
-            self.output_shape = int((self.output_shape - kernel_size) / kernel_stride) + 1
+            output_image = int((output_image - kernel_size) / kernel_stride) + 1
+            
+            text_layers.extend([
+                nn.Conv1d(
+                    text_dim if i==0 else hidden_dim,
+                    hidden_dim,
+                    kernel_size,
+                    kernel_stride
+                ),
+                nn.ReLU()
+            ])
+            output_text = int((output_text - kernel_size) / kernel_stride) + 1
 
-        nn_layers.extend([
-            nn.ReLU(),
-            nn.Flatten(),
-            nn.Linear(self.output_shape * hidden_dim, 1),
-            nn.Flatten(start_dim=0)
-        ])
-        self.descriminator = nn.Sequential(*nn_layers)
+        image_layers.append(nn.Flatten())
+        text_layers.append(nn.Flatten())
+        
+        self.img_encoder = nn.Sequential(*image_layers)
+        self.text_encoder = nn.Sequential(*text_layers)
+        
+        self.descriminator = nn.Linear((output_image + output_text) * hidden_dim, 1)
 
     def forward(self, c_img: torch.Tensor, x: torch.Tensor):
         inp = torch.concat(
@@ -58,4 +61,4 @@ class Discriminator(nn.Module):
             ],
             dim=1
         )
-        return self.descriminator(inp)
+        return self.descriminator(inp).flatten()
