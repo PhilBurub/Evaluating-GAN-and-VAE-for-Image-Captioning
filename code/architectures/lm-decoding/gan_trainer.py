@@ -7,7 +7,17 @@ bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class GANImageDescriptionTrainer:
-    def __init__(self, discriminator, qwen_model, qwen_tokenizer, image_adapter, device, lr=1e-4, lambda_gp=5):
+    def __init__(
+        self, 
+        discriminator, 
+        qwen_model, 
+        qwen_tokenizer, 
+        image_adapter, 
+        device, 
+        lr=1e-4, 
+        lambda_gp=5, 
+        betas=(0.5, 0.9)
+    ):
         self.qwen_model = qwen_model
         self.qwen_tokenizer = qwen_tokenizer
         self.image_adapter = image_adapter
@@ -22,13 +32,8 @@ class GANImageDescriptionTrainer:
         for param in self.qwen_model.parameters():
             param.requires_grad = False
 
-        self.optimizer = torch.optim.Adam(
-            [
-                {'params': self.image_adapter.parameters()},
-                {'params': self.discriminator.parameters()}
-            ],
-            lr=lr
-        )
+        self.optimizer_adapter = torch.optim.Adam(self.image_adapter.parameters(), lr=lr, betas=betas)
+        self.optimizer_discriminator = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=betas)
         
     def compute_gradient_penalty(self, image_tokens, real_samples, fake_samples):
         alpha = torch.rand(real_samples.size(0), 1, 1, device=self.device)
@@ -136,6 +141,10 @@ class GANImageDescriptionTrainer:
         
         if generator:
             loss = - pred_score.mean()
+            if not val:
+                self.optimizer_adapter.zero_grad()
+                loss.backward()
+                self.optimizer_adapter.step()
         else:
             real_score = self.discriminator(
                 image_inputs.permute((0, 2, 1)),
@@ -145,11 +154,9 @@ class GANImageDescriptionTrainer:
             loss = pred_score.mean() - real_score.mean()
             if not val:
                 loss =+ self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
-        
-        if not val:
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+                self.optimizer_discriminator.zero_grad()
+                loss.backward()
+                self.optimizer_discriminator.step()
             
         return loss.item()
 
