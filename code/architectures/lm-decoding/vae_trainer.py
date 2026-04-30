@@ -158,7 +158,7 @@ class VAEImageDescriptionTrainer:
             
             image_inputs = torch.concat(
                 [
-                    image_inputs.to(self.device), 
+                    image_embeddings.to(self.device), 
                     noise_sampled
                 ],
                 dim=2
