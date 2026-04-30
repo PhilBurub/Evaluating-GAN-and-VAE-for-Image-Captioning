@@ -1,5 +1,6 @@
 from tqdm import tqdm
 from torch import autograd
+from torch.nn.functional import gumbel_softmax
 import torch
 
 break_symbol = ' [IMAGE] '
@@ -128,7 +129,7 @@ class GANImageDescriptionTrainer:
             labels=targets
         ).logits[:, image_embeddings.shape[1]:]
         
-        logits /= logits.sum(dim=-1, keepdim=True)
+        logits = gumbel_softmax(logits, hard=True)
         
         pred_embeddings = logits @ self.qwen_model.model.embed_tokens.weight
         
@@ -151,7 +152,7 @@ class GANImageDescriptionTrainer:
             
             loss = pred_score.mean() - real_score.mean()
             if not val:
-                loss =+ self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
+                loss += self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
                 self.optimizer_discriminator.zero_grad()
                 loss.backward()
                 self.optimizer_discriminator.step()
