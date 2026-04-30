@@ -150,11 +150,14 @@ class VAEImageDescriptionTrainer:
         self.image_adapter.eval()
         self.encoder.eval()
         with torch.no_grad():
-            noise_sampled = torch.randn((
-                image_embeddings.shape[0],
-                image_embeddings.shape[1],
-                self.encoder_dim
-            ))
+            noise_sampled = torch.randn(
+                (
+                    image_embeddings.shape[0],
+                    image_embeddings.shape[1],
+                    self.encoder_dim
+                ),
+                device=self.device
+            )
             
             image_inputs = torch.concat(
                 [
