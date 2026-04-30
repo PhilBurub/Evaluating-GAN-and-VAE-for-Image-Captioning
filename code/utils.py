@@ -14,12 +14,17 @@ def embed(images, model, processor, device, processor_args={}):
         output_features = model(**input_features)
         return output_features.last_hidden_state
 
-def get_collator(image_model, image_processor, eos_token, device, path):
+def get_collator(image_model, image_processor, eos_token, device, path, first_only=True):
     def collate(batch):
         captions = []
         images = []
         for row in batch:
-            captions.append(row['caption'][0] + eos_token)
+            if first_only:
+                captions.append(row['caption'][0] + eos_token)
+            else:
+                captions.append([
+                    caption + eos_token for caption in row['caption']
+                ])
             images.append(read_image(path + row['image']))
         return embed(images, image_model, image_processor, device), captions
     return collate

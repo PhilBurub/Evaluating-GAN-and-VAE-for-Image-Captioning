@@ -1,9 +1,7 @@
 from tqdm import tqdm
 from torch import autograd
 import torch
-import evaluate
 
-bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class GANImageDescriptionTrainer:
@@ -257,25 +255,15 @@ class GANImageDescriptionTrainer:
             skip_special_tokens=True
         )
     
-    def evaluate(self, loader):
+    def run_test(self, loader):
         out_df = {
             'references': [],
-            'predictions': [],
-            'bert_scores': []
+            'predictions': []
         }
 
         for batch in tqdm(loader, desc="Testing"):
             image_inputs, references = batch
             predictions = self.generate(image_embeddings=image_inputs, max_tokens=100)
-            bert_scores = bertscore.compute(
-                predictions=predictions,
-                references=references,
-                device=self.device,
-                lang="en"
-            )['f1']
-            
             out_df['references'].extend(references)
             out_df['predictions'].extend(predictions)
-            out_df['bert_scores'].extend(bert_scores)
-
         return out_df
