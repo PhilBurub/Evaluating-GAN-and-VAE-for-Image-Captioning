@@ -1,8 +1,6 @@
 from tqdm import tqdm
 import torch
-import evaluate
 
-bertscore = evaluate.load("bertscore")
 break_symbol = ' [IMAGE] '
 
 class QwenImageDescriptionTrainer:
