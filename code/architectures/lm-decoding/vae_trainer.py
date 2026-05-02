@@ -33,7 +33,7 @@ class VAEImageDescriptionTrainer:
             texts,
             return_tensors='pt',
             padding='max_length',
-            max_length=self.encoder.input_tokens,
+            max_length=self.encoder.text_tokens,
             truncation=True
         ).to(self.device)
         
