@@ -28,7 +28,7 @@ class VAEImageDescriptionTrainer:
             lr=lr
         )
     
-    def encode_texts(self, texts):
+    def encode_texts(self, images, texts):
         qwen_tokens = self.qwen_tokenizer(
             texts,
             return_tensors='pt',
@@ -39,7 +39,7 @@ class VAEImageDescriptionTrainer:
         
         text_embeddings = self.qwen_model.model(**qwen_tokens).last_hidden_state
         
-        mu, log_var = self.encoder(text_embeddings.permute((0, 2, 1)))
+        mu, log_var = self.encoder(images.permute((0, 2, 1)), text_embeddings.permute((0, 2, 1)))
         
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(mu, device=self.device)
@@ -47,7 +47,7 @@ class VAEImageDescriptionTrainer:
         
     def get_loss(self, image_inputs, texts, val=False):
         
-        noise_sampled, mu, log_var = self.encode_texts(texts)
+        noise_sampled, mu, log_var = self.encode_texts(image_inputs, texts)
         
         kld_loss = - self.kl_coef * (1 + log_var - mu.pow(2) - log_var.exp()).mean()
         
