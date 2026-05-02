@@ -1,7 +1,12 @@
+from nltk.translate.bleu_score import sentence_bleu
+from torch.nn.functional import cosine_similarity
 from torchvision.io import read_image
 import getpass
 import torch
 import os
+import re
+
+word_exp = re.compile(r'[a-z]+')
 
 def _set_env(var: str):
     if not os.environ.get(var):
@@ -28,3 +33,10 @@ def get_collator(image_model, image_processor, eos_token, device, path, first_on
             images.append(read_image(path + row['image']))
         return embed(images, image_model, image_processor, device), captions
     return collate
+
+def get_score(references, generation):
+    generation = word_exp.findall(generation.lower())
+    references = [
+        word_exp.findall(reference.lower()) for reference in references
+    ]
+    return sentence_bleu(references, generation)
