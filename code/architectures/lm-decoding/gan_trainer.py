@@ -82,7 +82,7 @@ class GANImageDescriptionTrainer:
             ],
             dim=1
         )
-
+        
         qwen_tokens = self.qwen_tokenizer(
             texts,
             return_tensors='pt',
@@ -90,11 +90,11 @@ class GANImageDescriptionTrainer:
             max_length=self.discriminator.text_tokens,
             truncation=True
         ).to(self.device)
-
+        
         text_embeddings = self.qwen_model.model.embed_tokens(
             qwen_tokens['input_ids']
         )
-
+        
         all_embeddings = torch.cat(
             [
                 image_embeddings,
@@ -111,31 +111,15 @@ class GANImageDescriptionTrainer:
             dim=1
         )
 
-        targets = torch.cat(
-            [
-                torch.full(image_embeddings.shape[:2], -100, device=self.device),
-                torch.where(
-                    qwen_tokens['attention_mask']==1,
-                    qwen_tokens['input_ids'],
-                    -100
-                )
-            ],
-            dim=1
-        ).to(torch.int64)
-
-        logits = self.qwen_model(
+        generated_state = self.qwen_model(
             inputs_embeds=all_embeddings,
             attention_mask=attn_mask,
-            labels=targets
-        ).logits[:, image_embeddings.shape[1]:]
-        
-        logits = gumbel_softmax(logits, hard=True)
-        
-        pred_embeddings = logits @ self.qwen_model.model.embed_tokens.weight
+            output_hidden_states=True
+        ).hidden_states[-1][:, image_embeddings.shape[1]:]
         
         pred_score = self.discriminator(
             image_inputs.permute((0, 2, 1)),
-            pred_embeddings.permute((0, 2, 1))
+            generated_state.permute((0, 2, 1))
         )
         
         if generator:
@@ -145,14 +129,20 @@ class GANImageDescriptionTrainer:
                 loss.backward()
                 self.optimizer_adapter.step()
         else:
+            real_state = self.qwen_model(
+                input_ids=qwen_tokens['input_ids'],
+                attention_mask=qwen_tokens['attention_mask'],
+                output_hidden_states=True
+            ).hidden_states[-1]
+            
             real_score = self.discriminator(
                 image_inputs.permute((0, 2, 1)),
-                text_embeddings.permute((0, 2, 1))
+                real_state.permute((0, 2, 1))
             )
             
             loss = pred_score.mean() - real_score.mean()
             if not val:
-                loss += self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
+                loss += self.lambda_gp * self.compute_gradient_penalty(image_inputs, real_state, generated_state)
                 self.optimizer_discriminator.zero_grad()
                 loss.backward()
                 self.optimizer_discriminator.step()
