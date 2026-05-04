@@ -130,7 +130,7 @@ class GANImageDescriptionTrainer:
                 self.optimizer_adapter.step()
         else:
             placeholder_tokens = self.qwen_tokenizer(
-                placeholder, 
+                [placeholder] * image_embeddings.shape[0], 
                 return_tensors='pt',
                 padding='max_length',
                 max_length=image_embeddings.shape[1],
