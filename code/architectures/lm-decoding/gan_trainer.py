@@ -1,9 +1,9 @@
 from tqdm import tqdm
 from torch import autograd
-from torch.nn.functional import gumbel_softmax
 import torch
 
 break_symbol = ' [IMAGE] '
+placeholder = 'The image shows the following: '
 
 class GANImageDescriptionTrainer:
     def __init__(
@@ -129,11 +129,23 @@ class GANImageDescriptionTrainer:
                 loss.backward()
                 self.optimizer_adapter.step()
         else:
+            placeholder_tokens = self.qwen_tokenizer(
+                placeholder, 
+                return_tensors='pt',
+                padding='max_length',
+                max_length=image_embeddings.shape[1],
+                truncation=True
+            )['input_ids'].to(self.device)
+
+            
             real_state = self.qwen_model(
-                input_ids=qwen_tokens['input_ids'],
+                input_ids=torch.concat(
+                    [placeholder_tokens, qwen_tokens['input_ids']], 
+                    dim=1
+                ),
                 attention_mask=qwen_tokens['attention_mask'],
                 output_hidden_states=True
-            ).hidden_states[-1]
+            ).hidden_states[-1][:, image_embeddings.shape[1]:]
             
             real_score = self.discriminator(
                 image_inputs.permute((0, 2, 1)),
