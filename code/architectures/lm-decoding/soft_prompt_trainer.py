@@ -4,23 +4,43 @@ import torch
 break_symbol = ' [IMAGE] '
 
 class SoftPromptTrainer:
-    def __init__(self, trainable_tokens, qwen_model, qwen_tokenizer, device, lr=1e-4):
+    def __init__(
+        self, 
+        trainable_tokens, 
+        qwen_model, 
+        qwen_tokenizer, 
+        device, 
+        init_prompt="",
+        lr=1e-4, 
+        eps=1e-4, 
+        max_epochs=10000
+    ):
         self.trainable_tokens = trainable_tokens
         self.qwen_model = qwen_model
         self.qwen_tokenizer = qwen_tokenizer
         self.lr = lr
+        self.eps = eps
+        self.max_epochs = max_epochs
         self.device = device
-        
-        break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
-        
-        with torch.no_grad():
-            self.break_embeddings = qwen_model.model.embed_tokens(break_tokens).to(self.device)
 
         for param in self.qwen_model.parameters():
             param.requires_grad = False
+        
+        break_tokens = self.qwen_tokenizer(break_symbol, return_tensors='pt')['input_ids'].to(self.device)
+
+        init_tokens = self.qwen_tokenizer(
+            init_prompt,
+            return_tensors='pt',
+            padding='max_length',
+            max_length=self.trainable_tokens,
+            truncation=True
+        )['input_ids'].to(self.device)
+        
+        with torch.no_grad():
+            self.break_embeddings = self.qwen_model.model.embed_tokens(break_tokens).detach()
+            self.init_prompt = self.qwen_model.model.embed_tokens(init_tokens).detach()
 
     def get_soft_prompts(self, texts):
-
         qwen_tokens = self.qwen_tokenizer(
             texts,
             return_tensors='pt',
@@ -33,7 +53,7 @@ class SoftPromptTrainer:
 
         fixed_embeddings = torch.cat(
             [
-                self.break_embeddings.detach().repeat(len(texts), 1, 1),
+                self.break_embeddings.repeat(len(texts), 1, 1),
                 text_embeddings
             ],
             dim=1
@@ -41,7 +61,7 @@ class SoftPromptTrainer:
 
         attn_mask = torch.cat(
             [
-                torch.ones((len(texts), self.trainable_tokens), device=self.device),
+                torch.ones((len(texts), self.trainable_tokens + self.break_embeddings.shape[1]), device=self.device),
                 qwen_tokens['attention_mask']
             ],
             dim=1
@@ -49,7 +69,7 @@ class SoftPromptTrainer:
 
         targets = torch.cat(
             [
-                torch.full((len(texts), self.trainable_tokens + 1), -100, device=self.device),
+                torch.full((len(texts), self.trainable_tokens + self.break_embeddings.shape[1]), -100, device=self.device),
                 torch.where(
                     qwen_tokens['attention_mask']==1,
                     qwen_tokens['input_ids'],
@@ -58,24 +78,18 @@ class SoftPromptTrainer:
             ],
             dim=1
         ).to(torch.int64)
-        
-        trainable_emeddings = torch.randn(
-            (
-                len(texts),
-                self.trainable_tokens,
-                self.qwen_model.config.hidden_size
-            ),
-            device=self.device,
-            requires_grad=True
-        )
+
+        trainable_emeddings = self.init_prompt.detach().repeat(len(texts), 1, 1)
+        trainable_emeddings += torch.randn_like(trainable_emeddings) * 0.02
+        trainable_emeddings.requires_grad = True
         
         optimizer = torch.optim.Adam(
             [trainable_emeddings],
             lr=self.lr
         )
         
-        cur_loss = None
-        while True:
+        prev_loss = float('inf')
+        for _ in range(self.max_epochs):            
             all_embeddings = torch.cat(
                 [trainable_emeddings, fixed_embeddings],
                 dim=1
@@ -87,33 +101,34 @@ class SoftPromptTrainer:
                 labels=targets
             ).loss
             
-            if cur_loss is not None and cur_loss - loss.item() < 1e-4:
-                break
-            
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
+            if prev_loss - loss.item() < self.eps:
+                break
+            prev_loss = loss.item()
+            
         return trainable_emeddings.detach().cpu()
     
-    def generate(self, trainable_emeddings, max_tokens=20):
+    def generate(self, trainable_emeddings, max_tokens=64):
         with torch.no_grad():
             previous_embeddings = torch.concat(
                 [
-                  trainable_emeddings,
-                  self.break_embeddings.detach().repeat(trainable_emeddings.shape[0], 1, 1).to(self.device)
+                  trainable_emeddings.to(self.device),
+                  self.break_embeddings.repeat(trainable_emeddings.shape[0], 1, 1)
                 ],
                 dim=1
             )
     
             attn_mask = torch.ones(previous_embeddings.shape[:2], device=self.device)
-    
+
             fake_input_ids = torch.full(
                 previous_embeddings.shape[:2],
                 self.qwen_tokenizer.pad_token_id,
                 device=self.device
             ).to(torch.int64)
-    
+            
             generated_ids = self.qwen_model.generate(
                 input_ids=fake_input_ids,
                 inputs_embeds=previous_embeddings,
