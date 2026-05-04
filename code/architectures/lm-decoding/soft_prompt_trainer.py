@@ -70,7 +70,7 @@ class SoftPromptTrainer:
         )
         
         optimizer = torch.optim.Adam(
-            trainable_emeddings,
+            [trainable_emeddings],
             lr=self.lr
         )
         
