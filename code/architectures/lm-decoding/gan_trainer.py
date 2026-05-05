@@ -111,11 +111,28 @@ class GANImageDescriptionTrainer:
             dim=1
         )
 
-        generated_state = self.qwen_model(
+        targets = torch.cat(
+            [
+                torch.full(image_embeddings.shape[:2], -100, device=self.device),
+                torch.where(
+                    qwen_tokens['attention_mask']==1,
+                    qwen_tokens['input_ids'],
+                    -100
+                )
+            ],
+            dim=1
+        ).to(torch.int64)
+        
+        qwen_output = self.qwen_model(
             inputs_embeds=all_embeddings,
             attention_mask=attn_mask,
-            output_hidden_states=True
-        ).hidden_states[-1][:, image_embeddings.shape[1]:]
+            output_hidden_states=True,
+            labels=targets
+        )
+        
+        generated_state = qwen_output.hidden_states[-1][:, image_embeddings.shape[1]:]
+        
+        generated_loss = qwen_output.loss
         
         pred_score = self.discriminator(
             image_inputs.permute((0, 2, 1)),
@@ -123,7 +140,7 @@ class GANImageDescriptionTrainer:
         )
         
         if generator:
-            loss = - pred_score.mean()
+            loss = - 0.005 * pred_score.mean() + generated_loss
             if not val:
                 self.optimizer_adapter.zero_grad()
                 loss.backward()
