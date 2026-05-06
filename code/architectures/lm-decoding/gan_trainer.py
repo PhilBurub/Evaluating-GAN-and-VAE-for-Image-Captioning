@@ -1,9 +1,9 @@
 from tqdm import tqdm
 from torch import autograd
+from torch.nn.functional import gumbel_softmax
 import torch
 
 break_symbol = ' [IMAGE] '
-placeholder = 'The image shows the following: '
 
 class GANImageDescriptionTrainer:
     def __init__(
@@ -82,7 +82,7 @@ class GANImageDescriptionTrainer:
             ],
             dim=1
         )
-        
+
         qwen_tokens = self.qwen_tokenizer(
             texts,
             return_tensors='pt',
@@ -90,11 +90,11 @@ class GANImageDescriptionTrainer:
             max_length=self.discriminator.text_tokens,
             truncation=True
         ).to(self.device)
-        
+
         text_embeddings = self.qwen_model.model.embed_tokens(
             qwen_tokens['input_ids']
         )
-        
+
         all_embeddings = torch.cat(
             [
                 image_embeddings,
@@ -126,52 +126,33 @@ class GANImageDescriptionTrainer:
         qwen_output = self.qwen_model(
             inputs_embeds=all_embeddings,
             attention_mask=attn_mask,
-            output_hidden_states=True,
             labels=targets
         )
         
-        generated_state = qwen_output.hidden_states[-1][:, image_embeddings.shape[1]:]
+        logits = gumbel_softmax(qwen_output.logits[:, image_embeddings.shape[1]:], hard=True)
         
-        generated_loss = qwen_output.loss
+        pred_embeddings = logits @ self.qwen_model.model.embed_tokens.weight
         
         pred_score = self.discriminator(
             image_inputs.permute((0, 2, 1)),
-            generated_state.permute((0, 2, 1))
+            pred_embeddings.permute((0, 2, 1))
         )
         
         if generator:
-            loss = - 0.005 * pred_score.mean() + generated_loss
+            loss = - 0.005 * pred_score.mean() + qwen_output.loss
             if not val:
                 self.optimizer_adapter.zero_grad()
                 loss.backward()
                 self.optimizer_adapter.step()
         else:
-            placeholder_tokens = self.qwen_tokenizer(
-                [placeholder] * image_embeddings.shape[0], 
-                return_tensors='pt',
-                padding='max_length',
-                max_length=image_embeddings.shape[1],
-                truncation=True
-            )['input_ids'].to(self.device)
-
-            
-            real_state = self.qwen_model(
-                input_ids=torch.concat(
-                    [placeholder_tokens, qwen_tokens['input_ids']], 
-                    dim=1
-                ),
-                attention_mask=qwen_tokens['attention_mask'],
-                output_hidden_states=True
-            ).hidden_states[-1][:, image_embeddings.shape[1]:]
-            
             real_score = self.discriminator(
                 image_inputs.permute((0, 2, 1)),
-                real_state.permute((0, 2, 1))
+                text_embeddings.permute((0, 2, 1))
             )
             
             loss = pred_score.mean() - real_score.mean()
             if not val:
-                loss += self.lambda_gp * self.compute_gradient_penalty(image_inputs, real_state, generated_state)
+                loss += self.lambda_gp * self.compute_gradient_penalty(image_inputs, text_embeddings, pred_embeddings)
                 self.optimizer_discriminator.zero_grad()
                 loss.backward()
                 self.optimizer_discriminator.step()
