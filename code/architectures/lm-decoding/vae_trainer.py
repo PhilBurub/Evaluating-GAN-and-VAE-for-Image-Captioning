@@ -211,7 +211,7 @@ class VAEImageDescriptionTrainer:
             skip_special_tokens=True
         )
     
-    def run_test(self, loader):
+    def run_test(self, loader, fixed_noise=None):
         out_df = {
             'references': [],
             'predictions': []
@@ -219,7 +219,7 @@ class VAEImageDescriptionTrainer:
 
         for batch in tqdm(loader, desc="Testing"):
             image_inputs, references = batch
-            predictions = self.generate(image_embeddings=image_inputs, max_tokens=100)
+            predictions = self.generate(image_embeddings=image_inputs, fixed_noise=fixed_noise, max_tokens=100)
             out_df['references'].extend(references)
             out_df['predictions'].extend(predictions)
         return out_df
