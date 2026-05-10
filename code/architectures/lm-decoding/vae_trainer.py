@@ -144,18 +144,29 @@ class VAEImageDescriptionTrainer:
         torch.cuda.empty_cache()
         return total_loss / total_examples
 
-    def generate(self, image_embeddings, max_tokens=20):
+    def generate(self, image_embeddings, fixed_noise=None, max_tokens=20):
         self.image_adapter.eval()
         self.encoder.eval()
         with torch.no_grad():
-            noise_sampled = torch.randn(
-                (
-                    image_embeddings.shape[0],
-                    image_embeddings.shape[1],
-                    self.encoder_dim
-                ),
-                device=self.device
-            )
+            if fixed_noise is None:
+                noise_sampled = torch.randn(
+                    (
+                        image_embeddings.shape[0],
+                        image_embeddings.shape[1],
+                        self.encoder_dim
+                    ),
+                    device=self.device
+                )
+            else:
+                noise_sampled = torch.full(
+                    (
+                        image_embeddings.shape[0],
+                        image_embeddings.shape[1],
+                        self.encoder_dim
+                    ),
+                    fill_value=fixed_noise,
+                    device=self.device
+                )
             
             image_inputs = torch.concat(
                 [
