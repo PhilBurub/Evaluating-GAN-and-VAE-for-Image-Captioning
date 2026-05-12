@@ -35,4 +35,17 @@ Training logs and artifacts (including trained adapters, encoders and discrimina
 | *VAE* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/dj95dmc6) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/hrvn2ww8) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/lmh6eyr3) |
 | *GAN* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/7pvtpczb) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/og188rrw) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/l5gpazuq) |
 
+# Metrics
+## Corpus BLEU
+|  | S (6.9m) | M (18.3m) | L (36.7m) |
+| ------ | ----- | ----- | ----- |
+| *baseline* | 16.8624 | 16.3030 | 16.3885 |
+| *VAE* | 15.7579 | 15.2547 | 16.4059 |
+| *GAN* | 15.9495 | 16.2308 | 16.7414 |
 
+## BERTScore
+|  | S (6.9m) | M (18.3m) | L (36.7m) |
+| ------ | ----- | ----- | ----- |
+| *baseline* | .8351 | .8340 | .8330 |
+| *VAE* | .8302 | .8277 | .8334 |
+| *GAN* | .8334 | .8321 | .8343 |
