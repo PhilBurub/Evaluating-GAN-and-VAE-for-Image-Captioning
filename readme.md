@@ -32,7 +32,7 @@ Training logs and artifacts (including trained adapters, encoders and discrimina
 |  | S (6.9m) | M (18.3m) | L (36.7m) |
 | ------ | ----- | ----- | ----- |
 | *baseline* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/zgltu203) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/xsmk39od) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/oppsndpv) |
-| *VAE* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/dj95dmc6) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/wnb5z1be) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/lmh6eyr3) |
+| *VAE* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/dj95dmc6) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/hrvn2ww8) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/lmh6eyr3) |
 | *GAN* | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/7pvtpczb) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/og188rrw) | [🔗](https://wandb.ai/pburub/gan-vae-image-captioning/runs/l5gpazuq) |
 
 
